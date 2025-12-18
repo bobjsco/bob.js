@@ -2,3 +2,4 @@ here, watch this for instructions https://www.canva.com/design/DAG49utq5_4/0HrWZ
 ( this is a fun script that you can paste into your chromebooks new tab that teaches cannot see )
 there is a menu with 100+ fun options.
 this is all based around fun drag and falling physics with different shapes.
+NOW WITH A NEW CLEAN MENU LOOK, WITH SMOOTH ANIMATIONS! get it for free now!
