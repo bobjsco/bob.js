@@ -227,6 +227,18 @@
     let sizeWaveMode = false;
     let antiGravityMode = false;
     
+    // === NEW FLAGS FOR GEOMETRY & VISUALS ===
+    let infiniteBounceMode = false;
+    let randomSizeMode = false;
+    let jitterMode = false;
+    let glassMode = false; // Transparent
+    let wireframeMode = false; // Outline only
+    let shadowMode = false; // Drop shadow
+    let glowMode = false; // Global glow
+    let neonMode = false; // Bright neon colors
+    let mirrorMode = false; // Wrap around screen
+    let outlineOnly = false; // Only borders
+    
     // === Color Pulsing System ===
     let colorPulseMode = false;
     let menuPulseMode = false;
@@ -296,11 +308,19 @@
     // === Block factory ===
     function makeBlock(x, y, color = randomColor(), shape = randomShape()) {
         const mass = 1;
+        // Random size if enabled
+        let w = blockSize;
+        let h = blockSize;
+        if (randomSizeMode) {
+            w = blockSize * (0.5 + Math.random() * 1.5);
+            h = blockSize * (0.5 + Math.random() * 1.5);
+        }
+
         return {
             x,
             y,
-            w: blockSize,
-            h: blockSize,
+            w: w,
+            h: h,
             color,
             vx: (Math.random() - 0.5) * 2,
             vy: 0,
@@ -310,11 +330,11 @@
             rotation: 0,
             rotationSpeed: (Math.random() - 0.5) * 0.1,
             angularVelocity: 0,
-            displayW: blockSize,
-            displayH: blockSize,
+            displayW: w,
+            displayH: h,
             elasticity: restitution,
             friction,
-            momentOfInertia: (mass * (blockSize * blockSize + blockSize * blockSize)) / 12,
+            momentOfInertia: (mass * (w * w + h * h)) / 12,
             trail: [],
             maxTrailLength: 20
         };
@@ -1123,6 +1143,7 @@
     gui.appendChild(refreshControl);
     
     // === Content Pages ===
+    // UPDATED: Added geometry, world, visuals
     const contentPages = {
         core: document.createElement("div"),
         color: document.createElement("div"),
@@ -1130,7 +1151,10 @@
         fun: document.createElement("div"),
         physics: document.createElement("div"),
         illusions: document.createElement("div"),
-        settings: document.createElement("div") // Added Settings Page
+        settings: document.createElement("div"),
+        geometry: document.createElement("div"),
+        world: document.createElement("div"),
+        visuals: document.createElement("div")
     };
     
     // Style content pages
@@ -1783,6 +1807,126 @@
         contentPages.illusions.appendChild(btn);
     });
     
+    // === NEW: GEOMETRY PAGE (10 Buttons) ===
+    const geometryButtons = [
+        ['Spawn Triangle', () => { blocks.push(makeBlock(Math.random() * (canvas.width - blockSize), 0, randomColor(), 'triangle')); }],
+        ['Spawn Circle', () => { blocks.push(makeBlock(Math.random() * (canvas.width - blockSize), 0, randomColor(), 'circle')); }],
+        ['Spawn Rectangle', () => { blocks.push(makeBlock(Math.random() * (canvas.width - blockSize), 0, randomColor(), 'rectangle')); }],
+        ['Spawn Tiny', () => { 
+            let b = makeBlock(Math.random() * (canvas.width - 20), Math.random() * (canvas.height - 20));
+            b.w = 20; b.h = 20; b.displayW = 20; b.displayH = 20; 
+            blocks.push(b); 
+        }],
+        ['Spawn Huge', () => { 
+            let b = makeBlock(Math.random() * (canvas.width - 200), Math.random() * (canvas.height - 200));
+            b.w = 200; b.h = 200; b.displayW = 200; b.displayH = 200; 
+            blocks.push(b); 
+        }],
+        ['Shuffle Positions', () => {
+            blocks.forEach(b => { b.x = Math.random() * canvas.width; b.y = Math.random() * canvas.height; });
+        }],
+        ['Reverse Velocities', () => { blocks.forEach(b => { b.vx *= -1; b.vy *= -1; }); }],
+        ['Stop All', () => { blocks.forEach(b => { b.vx = 0; b.vy = 0; b.angularVelocity = 0; }); }],
+        ['Randomize Colors', () => { blocks.forEach(b => { b.color = randomColor(); }); }],
+        ['Randomize Shapes', () => { blocks.forEach(b => { b.shape = randomShape(); }); }],
+        ['Spawn Wall', () => { blocks.push(makeBlock(canvas.width/2 - 200, canvas.height/2, '#333333', 'rectangle')); 
+            let b = blocks[blocks.length-1]; b.w = 400; b.h = 20; b.displayW = 400; b.displayH = 20; b.vx = 0; b.vy = 0; }],
+        ['Spawn Random Cluster', () => {
+            const cx = Math.random() * canvas.width;
+            const cy = Math.random() * canvas.height;
+            for(let i=0; i<5; i++) blocks.push(makeBlock(cx + (Math.random()-0.5)*100, cy + (Math.random()-0.5)*100));
+        }],
+        ['Toggle Random Sizes', () => { randomSizeMode = !randomSizeMode; }],
+        ['Toggle Jitter', () => { jitterMode = !jitterMode; }],
+        ['Scale Up 10%', () => { blocks.forEach(b => { b.w *= 1.1; b.h *= 1.1; b.displayW *= 1.1; b.displayH *= 1.1; }); }],
+        ['Scale Down 10%', () => { blocks.forEach(b => { b.w *= 0.9; b.h *= 0.9; b.displayW *= 0.9; b.displayH *= 0.9; }); }]
+    ];
+    
+    geometryButtons.forEach(([name, action]) => {
+        const btn = createButton(name, action);
+        contentPages.geometry.appendChild(btn);
+    });
+
+    // === NEW: WORLD PAGE (10 Buttons) ===
+    const worldButtons = [
+        ['Infinite Bounce (Walls)', () => { 
+            infiniteBounceMode = !infiniteBounceMode; 
+            physicsSettings.wallBounce = infiniteBounceMode ? 1.0 : 0.75;
+            applyPhysicsSettings();
+        }],
+        ['Toggle Gravity', () => { verticalMovement = !verticalMovement; }],
+        ['Toggle Horizontal Movement', () => { horizontalMovement = !horizontalMovement; }],
+        ['Gravity Flip', () => { gravityDir *= -1; }],
+        ['Gravity Spin', () => { gravitySpin = !gravitySpin; }],
+        ['Zero Gravity', () => { physicsSettings.gravity = 0; applyPhysicsSettings(); }],
+        ['Heavy Gravity', () => { physicsSettings.gravity = 1.5; applyPhysicsSettings(); }],
+        ['No Walls (Free Fall)', () => { 
+            // Effectively infinite boundaries logic in update loop would be needed, 
+            // but here we just toggle a flag to ignore wall collision logic
+            // For simplicity, we toggle wallBounce to 0 and let them fall off, 
+            // OR we implement a wrap-around logic visually.
+            mirrorMode = !mirrorMode; 
+        }],
+        ['Walls are Sticky', () => { physicsSettings.wallBounce = 0.1; physicsSettings.friction = 0.5; applyPhysicsSettings(); }],
+        ['Walls are Bouncy', () => { physicsSettings.wallBounce = 1.0; physicsSettings.restitution = 1.0; applyPhysicsSettings(); }],
+        ['Reset World', () => { 
+            physicsSettings.gravity = 0.6; physicsSettings.wallBounce = 0.75; gravityDir = 1; 
+            verticalMovement = true; horizontalMovement = true; mirrorMode = false;
+            applyPhysicsSettings();
+        }],
+        ['Low Friction', () => { physicsSettings.friction = 0.98; applyPhysicsSettings(); }],
+        ['High Friction', () => { physicsSettings.friction = 0.2; applyPhysicsSettings(); }],
+        ['Time Warp (Slow)', () => { slowMo = 0.2; }],
+        ['Time Warp (Fast)', () => { slowMo = 2.0; }],
+        ['Time Normal', () => { slowMo = 1.0; }]
+    ];
+
+    worldButtons.forEach(([name, action]) => {
+        const btn = createButton(name, action);
+        contentPages.world.appendChild(btn);
+    });
+
+    // === NEW: VISUALS PAGE (10 Buttons) ===
+    const visualButtons = [
+        ['Toggle Shadows', () => { shadowMode = !shadowMode; }],
+        ['Toggle Glow', () => { glowMode = !glowMode; }],
+        ['Neon Mode', () => { neonMode = !neonMode; }],
+        ['Wireframe (Outline)', () => { wireframeMode = !wireframeMode; }],
+        ['Glass Mode (Transparent)', () => { glassMode = !glassMode; }],
+        ['High Contrast', () => { 
+            neonMode = false; glowMode = false; shadowMode = false; glassMode = false; wireframeMode = false; outlineOnly = true; 
+        }],
+        ['Rainbow Outline', () => { outlineOnly = true; neonMode = true; }],
+        ['Clear Visuals', () => {
+            shadowMode = false; glowMode = false; neonMode = false; wireframeMode = false; glassMode = false; outlineOnly = false;
+        }],
+        ['Thick Trails', () => { trailMode = true; physicsSettings.trailLength = 50; }],
+        ['Thin Trails', () => { trailMode = true; physicsSettings.trailLength = 5; }],
+        ['Flash Mode', () => { flashMode = !flashMode; }],
+        ['Cycle Backgrounds', () => {
+            const bgColors = ['#0B0B1E', '#1a1a1a', '#200f14', '#0f2014'];
+            let idx = 0;
+            setInterval(() => {
+                gui.style.setProperty('--background', bgColors[idx % bgColors.length]);
+                idx++;
+            }, 1000);
+        }],
+        ['Screenshot (Console)', () => {
+            console.log("Canvas data URL logged to console.");
+            console.log(canvas.toDataURL());
+            // Visual feedback
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0,0,100,100);
+        }],
+        ['Hide Menu', () => { gui.style.display = 'none'; }],
+        ['Outline Only', () => { outlineOnly = true; }]
+    ];
+
+    visualButtons.forEach(([name, action]) => {
+        const btn = createButton(name, action);
+        contentPages.visuals.appendChild(btn);
+    });
+    
     // === Settings Page (Integration of Theme/Keybind/Mobile Logic) ===
     
     // --- Settings: Mobile Mode System ---
@@ -1928,8 +2072,6 @@
                 settingsStore.data.theme[prop] = t[prop];
             }
             settingsStore.save();
-            // Update visual feedback
-            path.updatePath(); 
         });
         contentPages.settings.appendChild(btn);
     });
@@ -1987,10 +2129,19 @@
         createSidebarPath("Core Controls", '<i class="fas fa-sliders-h"></i>', contentPages.core)
     );
     sidebarPaths.appendChild(
+        createSidebarPath("Geometry", '<i class="fas fa-shapes"></i>', contentPages.geometry)
+    );
+    sidebarPaths.appendChild(
         createSidebarPath("Color Controls", '<i class="fas fa-palette"></i>', contentPages.color)
     );
     sidebarPaths.appendChild(
+        createSidebarPath("Visuals", '<i class="fas fa-eye"></i>', contentPages.visuals)
+    );
+    sidebarPaths.appendChild(
         createSidebarPath("Particle Effects", '<i class="fas fa-sparkles"></i>', contentPages.particle)
+    );
+    sidebarPaths.appendChild(
+        createSidebarPath("World / Env", '<i class="fas fa-globe"></i>', contentPages.world)
     );
     sidebarPaths.appendChild(
         createSidebarPath("Fun Controls", '<i class="fas fa-gamepad"></i>', contentPages.fun)
@@ -2002,7 +2153,7 @@
         createSidebarPath("Illusions", '<i class="fas fa-hat-wizard"></i>', contentPages.illusions)
     );
     sidebarPaths.appendChild(
-        createSidebarPath("Settings", '<i class="fas fa-sliders-h"></i>', contentPages.settings) // NEW SETTINGS TAB
+        createSidebarPath("Settings", '<i class="fas fa-sliders-h"></i>', contentPages.settings)
     );
     
     // Show core controls by default
@@ -2531,8 +2682,15 @@
         // Process all blocks
         const blocksToProcess = blocks;
         blocksToProcess.forEach((b) => {
-            // Skip off-screen blocks
-            if (b.x + b.w < screenBounds.left || b.x > screenBounds.right || b.y + b.h < screenBounds.top || b.y > screenBounds.bottom) {
+            
+            // === NEW: Jitter Mode ===
+            if (jitterMode && frameCount % 2 === 0) {
+                b.x += (Math.random() - 0.5) * 2;
+                b.y += (Math.random() - 0.5) * 2;
+            }
+
+            // Skip off-screen blocks (unless mirror mode is on)
+            if (!mirrorMode && (b.x + b.w < screenBounds.left || b.x > screenBounds.right || b.y + b.h < screenBounds.top || b.y > screenBounds.bottom)) {
                 return;
             }
             
@@ -2601,6 +2759,14 @@
                 b.x += b.vx * slowMo;
                 b.y += b.vy * slowMo;
                 
+                // === NEW: Mirror Mode (Wrap Around) ===
+                if (mirrorMode) {
+                    if (b.x > canvas.width) b.x = -b.w;
+                    if (b.x + b.w < 0) b.x = canvas.width;
+                    if (b.y > canvas.height) b.y = -b.h;
+                    if (b.y + b.h < 0) b.y = canvas.height;
+                }
+                
                 // Rotation (OPTIMIZATION: Simplified)
                 if (rotateMode) {
                     b.rotation += (b.rotationSpeed || 0.05);
@@ -2667,6 +2833,10 @@
                     b.color = `hsl(${(performance.now() / 10 + b.x) % 360},100%,60%)`;
                 } else if (randomFrameColors) {
                     b.color = randomColor();
+                } else if (neonMode) {
+                     // Increase lightness/saturation for neon look
+                     b.color = b.color.replace(/hsl\((\d+),(\d+)%,(\d+)%\)/, (m, h, s, l) => `hsl(${h}, 100%, 60%)`);
+                     b.color = b.color.replace(/rgb\((\d+),(\d+),(\d+)\)/, (m, r, g, b) => `rgb(0, ${Math.max(g, 150)}, 255)`);
                 }
             }
         });
@@ -2791,42 +2961,88 @@
         // Draw all visible blocks
         const visibleBlocks = blocks.filter(b => b.x + b.w > -50 && b.x < canvas.width + 50 && b.y + b.h > -50 && b.y < canvas.height + 50);
         
+        // Apply visual styles
+        if (shadowMode) {
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        } else if (glowMode) {
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ffffff';
+        } else {
+            ctx.shadowBlur = 0;
+        }
+
+        if (glassMode) {
+            ctx.globalAlpha = 0.3;
+        }
+
         // OPTIMIZATION: Batch render blocks by type to reduce state changes
         const rectangles = visibleBlocks.filter(b => b.shape === 'rectangle');
         const circles = visibleBlocks.filter(b => b.shape === 'circle');
         const triangles = visibleBlocks.filter(b => b.shape === 'triangle');
         
+        // Helper for rendering
+        const renderBlock = (b, drawFunc) => {
+            let color = flashMode ? randomColor() : b.color;
+            
+            if (neonMode) {
+                 ctx.shadowBlur = 10;
+                 ctx.shadowColor = color;
+            }
+
+            if (outlineOnly) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 0;
+                drawFunc(true); // Is outline
+            } else if (wireframeMode) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1;
+                drawFunc(true);
+            } else {
+                ctx.fillStyle = color;
+                drawFunc(false);
+            }
+        };
+
         // Render rectangles
         rectangles.forEach((b) => {
-            ctx.fillStyle = flashMode ? randomColor() : b.color;
-            // OPTIMIZATION: Skip shadows for better performance
-            ctx.fillRect(b.x, b.y, b.displayW, b.displayH);
+            renderBlock(b, (isOutline) => {
+                if (isOutline) ctx.strokeRect(b.x, b.y, b.displayW, b.displayH);
+                else ctx.fillRect(b.x, b.y, b.displayW, b.displayH);
+            });
         });
         
         // Render circles
         circles.forEach((b) => {
-            ctx.fillStyle = flashMode ? randomColor() : b.color;
-            ctx.beginPath();
-            ctx.arc(
-                b.x + b.displayW / 2,
-                b.y + b.displayH / 2,
-                b.displayW / 2,
-                0,
-                Math.PI * 2
-            );
-            ctx.fill();
+            renderBlock(b, (isOutline) => {
+                ctx.beginPath();
+                ctx.arc(
+                    b.x + b.displayW / 2,
+                    b.y + b.displayH / 2,
+                    b.displayW / 2,
+                    0,
+                    Math.PI * 2
+                );
+                if (isOutline) ctx.stroke(); else ctx.fill();
+            });
         });
         
         // Render triangles
         triangles.forEach((b) => {
-            ctx.fillStyle = flashMode ? randomColor() : b.color;
-            ctx.beginPath();
-            ctx.moveTo(b.x + b.displayW / 2, b.y);
-            ctx.lineTo(b.x, b.y + b.displayH);
-            ctx.lineTo(b.x + b.displayW, b.y + b.displayH);
-            ctx.closePath();
-            ctx.fill();
+            renderBlock(b, (isOutline) => {
+                ctx.beginPath();
+                ctx.moveTo(b.x + b.displayW / 2, b.y);
+                ctx.lineTo(b.x, b.y + b.displayH);
+                ctx.lineTo(b.x + b.displayW, b.y + b.displayH);
+                ctx.closePath();
+                if (isOutline) ctx.stroke(); else ctx.fill();
+            });
         });
+        
+        // Reset Context Settings
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
         
         // OPTIMIZATION: Simplified dynamite rendering
         dynamites.forEach((d) => {
